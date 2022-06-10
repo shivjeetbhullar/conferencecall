@@ -101,6 +101,11 @@ var media_options = {
     audio: false,
     video: false
 };
+var local_str = null;
+var peer_calls = {}
+var peer_list = {}
+var peer = new Peer();
+var cam = false;
 
 document.addEventListener("DOMContentLoaded", (event) => {
     myVideo = document.getElementById("local_video");
@@ -156,59 +161,56 @@ function removeuservideo(user_id) {
 
 function setAudioState(flag) {
     let local_stream = myVideo.srcObject;
-    document.getElementById("micic").innerText = (flag) ? "mic_off" : "mic";
     if (flag) {
         local_stream.getAudioTracks().forEach((track) => {
             media_options.audio = false
             track.enabled = !flag;
             track.stop()
-            cam = false
             audioMuted = true;
+            document.getElementById("micic").innerText = "mic_off";
         });
     } else {
         media_options.audio = true;
-        startCamera(media_options)
-        audioMuted = false;
-
+        startCamera(media_options, 'a');
     }
 }
 
 function setVideoState(flag) {
     let local_stream = myVideo.srcObject;
-    document.getElementById("vidicm").innerText = (flag) ? "videocam_off" : "videocam";
     if (flag) {
         local_stream.getVideoTracks().forEach((track) => {
             track.enabled = !flag;
             media_options.video = false;
             track.stop()
             videoMuted = true;
-            cam = false
+            document.getElementById("vidicm").innerText = "videocam_off";
         });
     } else {
         media_options.video = { height: 360 };
-        videoMuted = false;
-        startCamera(media_options)
-
+        startCamera(media_options, 'v')
     }
 }
-var local_str = null;
-var peer_calls = {}
-var peer_list = {}
-var peer = new Peer();
-var cam = false;
 
-function startCamera(media_options) {
+function startCamera(media_options, typ) {
     navigator.mediaDevices.getUserMedia(media_options)
         .then((stream) => {
             myVideo.srcObject = stream;
             local_str = stream
             cam = true
+            if (typ == 'v') { videoMuted = false;
+                document.getElementById("vidicm").innerText = "videocam"; } else { audioMuted = false;
+                document.getElementById("micic").innerText = "mic"; }
             createcall(stream)
         })
         .catch((e) => {
             console.log("Error! ", e);
+            if (typ == 'v') { media_options.video = false; } else { media_options.audio = false; }
             alert("Unable to access Cam or Mic! ");
+            cam = false
+            document.getElementById("vidicm").innerText = (videoMuted) ? "videocam_off" : "videocam";
+            document.getElementById("micic").innerText = (audioMuted) ? "mic_off" : "mic";
         });
+    return cam;
 }
 
 peer.on('open', function(id) {
@@ -255,12 +257,13 @@ socket.on("vpeer-disconnect", peerid => {
 })
 
 socket.on("stop-call", data => {
-    peer_calls[data.peerid].close()
+    try { peer_calls[data.peerid].close() } catch { console.log('Already Closed') }
 })
 
 
 function setservercon() {
     if (audioMuted && videoMuted) {
+        cam = false
         socket.emit("stop-call", { "room_id": v_room, 'name': user_n, 'peerid': peer.id });
     }
 }

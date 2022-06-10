@@ -10,8 +10,6 @@ socketio = SocketIO(app,path='collab.io', cors_allowed_origins='*')
 def index():
     return render_template("index.html")
 
-Vid_users = {}
-
 @socketio.on("start-stream")
 def startstream(roomId,userId):
     emit("video-connected", userId, broadcast=True, include_self=False, to=roomId)
